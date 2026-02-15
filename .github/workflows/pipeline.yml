@@ -1,0 +1,25 @@
+name: localstack-smoke
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start LocalStack (Stage 1)
+        run: docker compose up -d
+
+      - name: Run smoke script (Stage 2)
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/smoke.sh
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
