@@ -1,24 +1,50 @@
-name: localstack-smoke
+name: localstack-ci
 
 on:
   push:
     branches: ["main"]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: localstack-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  smoke:
+  stage-1-validate:
+    name: Stage 1 - Validate setup
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start LocalStack (Stage 1)
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Ensure smoke script is executable
+        run: chmod +x scripts/smoke.sh
+
+  stage-2-smoke:
+    name: Stage 2 - Run smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: stage-1-validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start LocalStack
         run: docker compose up -d
 
-      - name: Run smoke script (Stage 2)
-        run: |
-          chmod +x scripts/*.sh
-          ./scripts/smoke.sh
+      - name: Run smoke script
+        run: ./scripts/smoke.sh
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
 
       - name: Stop services
         if: always()
