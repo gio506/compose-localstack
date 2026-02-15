@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  localstack:
+    image: localstack/localstack:3.5
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs
+      - DEBUG=0
+      - AWS_DEFAULT_REGION=us-east-1
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -fsS http://localhost:4566/_localstack/health | grep -q '\"s3\": \"available\"' && curl -fsS http://localhost:4566/_localstack/health | grep -q '\"sqs\": \"available\"'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

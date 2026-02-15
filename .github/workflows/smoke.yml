@@ -1,0 +1,22 @@
+name: smoke
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  localstack-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Start LocalStack
+        run: docker compose up -d
+
+      - name: Run smoke script
+        run: ./scripts/smoke.sh
