@@ -1,55 +1,68 @@
 # compose-localstack
 
-Minimal LocalStack setup for **S3 + SQS only** using Docker Compose.
+Minimal LocalStack lab for S3 and SQS with a smoke-tested Docker Compose workflow.
 
-## Prerequisites
-- Docker + Docker Compose plugin
-- Bash shell (Linux/macOS/WSL)
+## What this project does
+- Starts LocalStack with only the free-tier S3 and SQS services enabled.
+- Creates a demo S3 bucket and uploads a sample file.
+- Creates a demo SQS queue and verifies send/receive behavior.
+- Runs the whole flow through a single smoke script and GitHub Actions job.
 
-## Project tree
+## Repo map
 ```text
 .
-├── docker-compose.yml              # Runs LocalStack with only S3 and SQS enabled
-├── README.md                       # Setup guide and usage steps
-├── CHEATSHEET.md                   # Quick command reference for day-to-day use
-├── LOCALSTACK_FREE_GUIDE.md        # What LocalStack is + free-tier service overview
-├── scripts/
-│   ├── 01-create-bucket.sh         # Creates demo S3 bucket
-│   ├── 02-upload-sample.sh         # Uploads sample file to the bucket
-│   ├── 03-create-queue.sh          # Creates demo SQS queue
-│   ├── 04-send-receive-message.sh  # Sends/receives one queue message
-│   └── smoke.sh                    # Runs all scripts in sequence
-└── .github/workflows/pipeline.yml  # CI pipeline: start stack + run smoke
+├── .github/workflows/pipeline.yml     # CI: compose validation + LocalStack smoke test
+├── .gitkeep                           # placeholder file retained from the starter repo
+├── CHEATSHEET.md                      # quick command reference
+├── FILES_EXPLAINED.md                 # file-by-file explanation
+├── LOCALSTACK_FREE_GUIDE.md           # background notes on LocalStack free-tier usage
+├── README.md                          # setup guide, workflow, and verification steps
+├── docker-compose.yml                 # LocalStack service definition with healthcheck
+└── scripts/
+    ├── 01-create-bucket.sh            # creates the demo S3 bucket
+    ├── 02-upload-sample.sh            # uploads a sample file into the bucket
+    ├── 03-create-queue.sh             # creates the demo SQS queue
+    ├── 04-send-receive-message.sh     # sends and receives one queue message
+    ├── common.sh                      # shared variables and readiness helper
+    └── smoke.sh                       # waits for readiness and runs the full flow
 ```
 
-## Step-by-step
-1. Start LocalStack
-   ```bash
-   docker compose up -d
-   ```
+## Prerequisites
+- Docker Desktop or Docker Engine
+- Docker Compose v2
+- Bash shell (Linux, macOS, or WSL on Windows)
 
-2. Make scripts executable
-   ```bash
-   chmod +x scripts/*.sh
-   ```
+## Start the lab
+```bash
+docker compose up -d
+```
 
-3. Run smoke flow (S3 + SQS)
-   ```bash
-   ./scripts/smoke.sh
-   ```
+## Run the smoke flow
+```bash
+chmod +x scripts/*.sh
+./scripts/smoke.sh
+```
 
-4. Optional cleanup
-   ```bash
-   docker compose down -v
-   ```
+The smoke flow will:
+1. Wait for LocalStack to become ready.
+2. Create the demo bucket.
+3. Upload `sample.txt`.
+4. Create the demo queue.
+5. Send and receive a test message.
+6. Verify the uploaded object exists.
 
-## What the scripts do
-- `01-create-bucket.sh`: creates bucket `demo-localstack-bucket`
-- `02-upload-sample.sh`: uploads `/tmp/sample.txt` into the demo bucket
-- `03-create-queue.sh`: creates queue `demo-localstack-queue`
-- `04-send-receive-message.sh`: sends and then receives one test message
-- `smoke.sh`: runs all scripts end-to-end
+## Cleanup
+```bash
+docker compose down -v
+```
 
-## CI pipeline (1–2 stages)
-- **Stage 1**: `docker compose up -d`
-- **Stage 2**: run `./scripts/smoke.sh`
+## CI pipeline
+`.github/workflows/pipeline.yml` runs:
+1. Docker Compose validation
+2. LocalStack start
+3. Smoke test execution
+4. Log collection on failure
+5. Teardown
+
+## Branch flow
+Development work happens on `dev`, then moves into `main` through a pull request.

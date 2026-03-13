@@ -2,7 +2,6 @@ name: localstack-ci
 
 on:
   push:
-    branches: ["main"]
   pull_request:
 
 permissions:
@@ -24,8 +23,10 @@ jobs:
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
 
-      - name: Ensure smoke script is executable
+      - name: Ensure scripts are executable
         run: chmod +x scripts/smoke.sh
+      - name: Ensure all scripts are executable
+        run: chmod +x scripts/*.sh
 
   stage-2-smoke:
     name: Stage 2 - Run smoke tests
@@ -38,6 +39,18 @@ jobs:
 
       - name: Start LocalStack
         run: docker compose up -d
+
+      - name: Wait for LocalStack health
+        run: |
+          for attempt in {1..30}; do
+            status="$(docker inspect --format='{{json .State.Health.Status}}' localstack || true)"
+            if [ "$status" = "\"healthy\"" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs --no-color
+          exit 1
 
       - name: Run smoke script
         run: ./scripts/smoke.sh
