@@ -14,10 +14,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  stage-1-validate:
-    name: Stage 1 - Validate setup
+  stage-1-structure:
+    name: Stage 1 - Structure check
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required files
+        shell: bash
+        run: |
+          required_files=(
+            "README.md"
+            "CHEATSHEET.md"
+            "FILES_EXPLAINED.md"
+            "docker-compose.yml"
+            "scripts/common.sh"
+            "scripts/smoke.sh"
+          )
+          for file in "${required_files[@]}"; do
+            test -f "$file" || {
+              echo "Missing required file: $file"
+              exit 1
+            }
+          done
+
+  stage-2-syntax:
+    name: Stage 2 - Script syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: stage-1-structure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check script syntax
+        run: bash -n scripts/*.sh
+
+  stage-3-compose-config:
+    name: Stage 3 - Compose config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: stage-2-syntax
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,19 +63,16 @@ jobs:
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
 
-      - name: Check script syntax
-        run: bash -n scripts/*.sh
-
       - name: Ensure scripts are executable
         run: chmod +x scripts/smoke.sh
       - name: Ensure all scripts are executable
         run: chmod +x scripts/*.sh
 
-  stage-2-smoke:
-    name: Stage 2 - Run smoke tests
+  stage-4-smoke:
+    name: Stage 4 - Run smoke tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: stage-1-validate
+    needs: stage-3-compose-config
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,3 +102,27 @@ jobs:
       - name: Stop services
         if: always()
         run: docker compose down -v
+
+  stage-5-final:
+    name: Stage 5 - Final status gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - stage-1-structure
+      - stage-2-syntax
+      - stage-3-compose-config
+      - stage-4-smoke
+    steps:
+      - name: Aggregate results
+        shell: bash
+        env:
+          STRUCTURE: ${{ needs.stage-1-structure.result }}
+          SYNTAX: ${{ needs.stage-2-syntax.result }}
+          COMPOSE: ${{ needs.stage-3-compose-config.result }}
+          SMOKE: ${{ needs.stage-4-smoke.result }}
+        run: |
+          for result in "$STRUCTURE" "$SYNTAX" "$COMPOSE" "$SMOKE"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              exit 1
+            fi
+          done
