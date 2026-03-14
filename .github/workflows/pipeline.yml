@@ -2,7 +2,9 @@ name: localstack-ci
 
 on:
   push:
+    branches: [main, dev]
   pull_request:
+    branches: [main, dev]
 
 permissions:
   contents: read
@@ -22,6 +24,9 @@ jobs:
 
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
+
+      - name: Check script syntax
+        run: bash -n scripts/*.sh
 
       - name: Ensure scripts are executable
         run: chmod +x scripts/smoke.sh
